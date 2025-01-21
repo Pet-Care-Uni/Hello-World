@@ -39,5 +39,5 @@ jobs:
     needs: [build]
     runs-on: ubuntu-latest
     steps:
-      - uses: Run a one-line script
+      - name: Run a one-line script
         run: echo Test
