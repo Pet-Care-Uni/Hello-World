@@ -68,15 +68,12 @@ jobs:
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
 
-      - name: Load Pipeline Properties
+      - name: Load pipeline properties
+        run: . pipeline.properties
         shell: bash
-        run: |
-          if [ -f pipeline.properties ]; then
-            . pipeline.properties
-          else
-            echo "pipeline.properties not found"
-          fi
 
       - name: Set Variables
         run: |
@@ -94,8 +91,8 @@ jobs:
 
       - name: Get Current and Previous OpenAPI Files
         run: |
-          git show HEAD:./${APIQ_API_FILENAME} > ${APIQ_API_FILENAME}
-          git show $LAST_COMMIT:./${APIQ_API_FILENAME} > ${BASE_FILENAME}_old.yaml
+          git show HEAD:./$APIQ_API_FILENAME > $APIQ_API_FILENAME
+          git show $LAST_COMMIT:./$APIQ_API_FILENAME > ${BASE_FILENAME}_old.yaml
 
       - name: Run OpenAPI Diff in Container
         run: |
