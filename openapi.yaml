@@ -37,7 +37,7 @@ tags:
       url: https://aiception.com
     name: language
 paths:
-  /adult_content:
+  /adult_contents:
     post:
       consumes:
         - application/json
