@@ -231,3 +231,50 @@ jobs:
             git commit -m "Ref resolver"
             git push origin $GITHUB_REF_NAME --no-verify
           fi
+
+  sonar2spectral:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'sonar2spectral')
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Load pipeline properties
+        run: |
+          if [ -f pipeline.properties ]; then
+            while IFS='=' read -r key value; do
+              if [[ ! -z "$key" ]]; then
+                echo "$key=$value" >> $GITHUB_ENV
+              fi
+            done < pipeline.properties
+          else
+            echo "pipeline.properties not found"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Set Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "${GITLAB_USER_EMAIL}"
+          git config --global user.name "${GITLAB_USER_NAME}"
+          git checkout -f ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }}
+          git pull
+
+      - name: Generate Spectral YAML file
+        run: |
+          echo "extends: ${APIQ_GATEWAY_URL}/profiles/${APIQ_GUIDE_STYLE_ID}/aq-spectral.yaml" > .spectral.yaml
+
+      - name: Commit and push changes
+        run: |
+          git add .spectral.yaml
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to commit."
+          else
+            git commit -m "Generate spectral rules file from Sonar guide style"
+            git push origin $GITHUB_REF_NAME --no-verify
+          fi
