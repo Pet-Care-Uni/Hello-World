@@ -79,6 +79,10 @@ jobs:
             else
               echo "pipeline.properties not found"
             fi
+        - name: Install Git
+          run: |
+            apt-get update -qq
+            apt-get install -qq git
 
         - name: Set Variables
           run: |
