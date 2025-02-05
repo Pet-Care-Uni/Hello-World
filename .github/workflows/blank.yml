@@ -87,7 +87,6 @@ jobs:
         - name: Set Variables
           run: |
             BASE_FILENAME=$(echo "$APIQ_API_FILENAME" | sed 's/\.yaml//')
-            git checkout -f ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }}
             git pull
             echo "BASE_FILENAME=$BASE_FILENAME" >> $GITHUB_ENV
 
