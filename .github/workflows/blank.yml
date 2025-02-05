@@ -26,7 +26,6 @@ jobs:
       CI_JOB_TOKEN: ${{ secrets.CI_JOB_TOKEN }}
       GITLAB_USER_EMAIL: ${{ secrets.GITLAB_USER_EMAIL }}
       GITLAB_USER_NAME: ${{ secrets.GITLAB_USER_NAME }}
-      APIQ_API_FILENAME: "openapi.yaml"
 
     steps:
       - name: Checkout repository
@@ -48,7 +47,6 @@ jobs:
 
       - name: Install Redocly CLI
         run: npm install @redocly/cli -g
-        if: contains(github.event.head_commit.message, 'redocly_linter')
 
       - name: Run Redocly Linter
         run: |
@@ -62,4 +60,51 @@ jobs:
             git push https://x-access-token:${{ secrets.CI_JOB_TOKEN }}@${{ secrets.APIQ_GITHUB_URL }}/${{ github.repository }}.git -o ci.skip
           fi
           exit $LINT_EXIT_CODE
-        if: contains(github.event.head_commit.message, 'redocly_linter')
+  openapi_diffs:
+      runs-on: ubuntu-latest
+      container: 
+        image: openapitools/openapi-diff:2.0.1
+        options: --entrypoint ""
+
+      if: contains(github.event.head_commit.message, 'openapi_diffs')  # Equivalente a `only: variables`
+
+      steps:
+        - name: Checkout Repository
+          uses: actions/checkout@v4
+
+        - name: Load Pipeline Properties
+          run: |
+            if [ -f pipeline.properties ]; then
+              source pipeline.properties
+            else
+              echo "pipeline.properties not found"
+            fi
+
+        - name: Install Git
+          run: |
+            apt-get update -qq
+            apt-get install -qq git
+
+        - name: Set Variables
+          run: |
+            BASE_FILENAME="${APIQ_API_FILENAME/.yaml/}"
+            echo "BASE_FILENAME=$BASE_FILENAME" >> $GITHUB_ENV
+
+        - name: Get Last Commit Hash
+          run: |
+            if [ "$(git rev-list --count HEAD)" -gt 1 ]; then
+                echo "LAST_COMMIT=$(git rev-parse HEAD~1)" >> $GITHUB_ENV
+            else
+                echo "No previous version detected."
+                exit 0
+            fi
+
+        - name: Get Current and Previous OpenAPI Files
+          run: |
+            git show HEAD:./${APIQ_API_FILENAME} > ${APIQ_API_FILENAME}
+            git show $LAST_COMMIT:./${APIQ_API_FILENAME} > ${BASE_FILENAME}_old.yaml
+
+        - name: Run OpenAPI Diff
+          run: |
+            java -jar /app/openapi-diff.jar ${BASE_FILENAME}_old.yaml ${APIQ_API_FILENAME} \
+              --fail-on-incompatible --error --info --html diffs-report.html
