@@ -124,3 +124,49 @@ jobs:
           docker run --rm -v ${{ github.workspace }}:/workdir -w /workdir openapitools/openapi-diff:2.0.1 \
             ${BASE_FILENAME}_old.yaml ${APIQ_API_FILENAME} \
             --fail-on-incompatible --error --info --html diffs-report.html
+
+  sonarqube:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'sonarqube')
+    container:
+      image: sonarsource/sonar-scanner-cli:4.7
+      options: --entrypoint ""
+
+    env:
+      SONAR_USER_HOME: ${{ github.workspace }}/.sonar
+      GIT_DEPTH: 0
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v3
+        with:
+          fetch-depth: 0
+
+      - name: Load pipeline properties
+        run: |
+          if [ -f pipeline.properties ]; then
+            while IFS='=' read -r key value; do
+              if [[ ! -z "$key" ]]; then
+                echo "$key=$value" >> $GITHUB_ENV
+              fi
+            done < pipeline.properties
+          else
+            echo "pipeline.properties not found"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Cache SonarQube files
+        uses: actions/cache@v3
+        with:
+          path: .sonar/cache
+          key: ${{ runner.os }}-sonarqube-${{ github.run_id }}
+          restore-keys: |
+            ${{ runner.os }}-sonarqube
+
+      - name: Run SonarQube Scanner
+        run: sonar-scanner -Dsonar.exclusions=**/*/*.* -Dsonar.qualitygate.wait=true
+        continue-on-error: true
+
+      - name: Debug Environment Variables
+        run: env | grep SONAR_
