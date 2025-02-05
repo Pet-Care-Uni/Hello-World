@@ -170,3 +170,56 @@ jobs:
 
       - name: Debug Environment Variables
         run: env | grep SONAR_
+
+  ref_resolver:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'ref_resolver')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Load pipeline properties
+        run: |
+          if [ -f pipeline.properties ]; then
+            while IFS='=' read -r key value; do
+              if [[ ! -z "$key" ]]; then
+                echo "$key=$value" >> $GITHUB_ENV
+              fi
+            done < pipeline.properties
+          else
+            echo "pipeline.properties not found"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "${GITLAB_USER_EMAIL}"
+          git config --global user.name "${GITLAB_USER_NAME}"
+          git checkout -f ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }}
+          git pull
+
+      - name: Install Redocly CLI
+        run: npm install @redocly/cli -g
+
+      - name: Run Redocly bundle
+        run: |
+          redocly bundle $APIQ_API_FILENAME -o ./resolved/resolved-$APIQ_API_FILENAME
+          redocly bundle $APIQ_API_FILENAME -o $APIQ_API_FILENAME
+
+      - name: Stash changes
+        run: |
+          git stash push -m "Temp stash for $APIQ_API_FILENAME" $APIQ_API_FILENAME
+
+      - name: Commit and push changes
+        run: |
+          git add ./resolved
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to commit."
+          else
+            git commit -m "Ref resolver"
+            git push origin $GITHUB_REF_NAME --no-verify
+          fi
