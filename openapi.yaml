@@ -36,6 +36,7 @@ tags:
       description: Find out more
       url: https://aiception.com
     name: language
+
 paths:
   /adult_content:
     post:
