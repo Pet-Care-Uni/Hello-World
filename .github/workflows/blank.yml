@@ -121,5 +121,5 @@ jobs:
       - name: Run OpenAPI Diff in Container
         run: |
           docker run --rm -v ${{ github.workspace }}:/workdir -w /workdir openapitools/openapi-diff:2.0.1 \
-            java -jar /app/openapi-diff.jar ${BASE_FILENAME}_old.yaml ${APIQ_API_FILENAME} \
+            ${BASE_FILENAME}_old.yaml ${APIQ_API_FILENAME} \
             --fail-on-incompatible --error --info --html diffs-report.html
