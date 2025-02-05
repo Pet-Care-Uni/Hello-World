@@ -69,7 +69,7 @@ jobs:
 
       steps:
         - name: Checkout Repository
-          uses: actions/checkout@v4
+          uses: actions/checkout@v3
 
         - name: Load Pipeline Properties
           shell: bash
@@ -80,14 +80,11 @@ jobs:
               echo "pipeline.properties not found"
             fi
 
-        - name: Install Git
-          run: |
-            apt-get update -qq
-            apt-get install -qq git
-
         - name: Set Variables
           run: |
             BASE_FILENAME=$(echo "$APIQ_API_FILENAME" | sed 's/\.yaml//')
+            git checkout -f ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }}
+            git pull
             echo "BASE_FILENAME=$BASE_FILENAME" >> $GITHUB_ENV
 
         - name: Get Last Commit Hash
