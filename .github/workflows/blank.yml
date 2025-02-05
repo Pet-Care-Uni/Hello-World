@@ -15,29 +15,43 @@ on:
 
 # A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  redocly_linter:
     runs-on: ubuntu-latest
+    container: node:latest
+    env:
+      APIQ_GITLAB_URL: ${{ secrets.APIQ_GITLAB_URL }}
+      CI_JOB_TOKEN: ${{ secrets.CI_JOB_TOKEN }}
+      GITLAB_USER_EMAIL: ${{ secrets.GITLAB_USER_EMAIL }}
+      GITLAB_USER_NAME: ${{ secrets.GITLAB_USER_NAME }}
+      APIQ_API_FILENAME: "openapi.yaml"
 
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+      - name: Checkout repository
+        uses: actions/checkout@v3
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+      - name: Load pipeline properties
+        run: source pipeline.properties
 
-      # Runs a set of commands using the runners shell
-      - name: Run a multi-line script
+      - name: Configure Git
         run: |
-          echo Add other actions to build,
-          echo test, and deploy your project.
-  test:
-    name: Test
-    needs: [build]
-    runs-on: ubuntu-latest
-    steps:
-      - name: Run a one-line script
-        run: echo Test
+          git config --global user.email "${GITLAB_USER_EMAIL}"
+          git config --global user.name "${GITLAB_USER_NAME}"
+          git checkout -f ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }}
+          git pull
+
+      - name: Install Redocly CLI
+        run: npm install @redocly/cli -g
+
+      - name: Run Redocly Linter
+        run: |
+          mkdir -p auto-generated/redocly
+          redocly lint $APIQ_API_FILENAME --format checkstyle > auto-generated/redocly/redocly_report.xml || LINT_EXIT_CODE=$?
+          git add .
+          if git diff-index --quiet HEAD --; then 
+            echo "No changes to commit."
+          else
+            git commit -m "Generate redocly linter report"
+            git push https://${{ secrets.CI_JOB_TOKEN }}@${{ secrets.APIQ_GITLAB_URL }}/${{ github.repository }}.git -o ci.skip
+          fi
+          exit $LINT_EXIT_CODE
+        if: contains(github.event.head_commit.message, 'redocly_linter')
