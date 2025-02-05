@@ -33,6 +33,9 @@ jobs:
         run: . pipeline.properties
         shell: bash
 
+      - name: Set Git Safe Directory
+        run: git config --global --add safe.directory $(pwd)
+
       - name: Configure Git
         run: |
           git config --global user.email "${GITLAB_USER_EMAIL}"
