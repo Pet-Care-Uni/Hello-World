@@ -32,7 +32,17 @@ jobs:
         uses: actions/checkout@v3
 
       - name: Load pipeline properties
-        run: . pipeline.properties
+        run: |
+          if [ -f pipeline.properties ]; then
+            while IFS='=' read -r key value; do
+              if [[ ! -z "$key" ]]; then
+                echo "$key=$value" >> $GITHUB_ENV
+              fi
+            done < pipeline.properties
+          else
+            echo "pipeline.properties not found"
+            exit 1
+          fi
         shell: bash
 
       - name: Set Git Safe Directory
