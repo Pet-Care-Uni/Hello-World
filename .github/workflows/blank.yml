@@ -87,7 +87,7 @@ jobs:
 
         - name: Set Variables
           run: |
-            BASE_FILENAME="${APIQ_API_FILENAME/.yaml/}"
+            BASE_FILENAME=$(echo "$APIQ_API_FILENAME" | sed 's/\.yaml//')
             echo "BASE_FILENAME=$BASE_FILENAME" >> $GITHUB_ENV
 
         - name: Get Last Commit Hash
