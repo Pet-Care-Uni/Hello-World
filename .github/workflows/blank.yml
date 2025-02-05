@@ -62,11 +62,10 @@ jobs:
           exit $LINT_EXIT_CODE
   openapi_diffs:
       runs-on: ubuntu-latest
-      needs: redocly_linter
       container: 
         image: openapitools/openapi-diff:2.0.1
         options: --entrypoint ""
-      if: success() || cancelled() && contains(github.event.head_commit.message, 'openapi_diffs')  # Equivalente a `only: variables`
+      if: contains(github.event.head_commit.message, 'openapi_diffs')  # Equivalente a `only: variables`
 
       steps:
         - name: Checkout Repository
