@@ -173,7 +173,6 @@ jobs:
 
   ref_resolver:
     runs-on: ubuntu-latest
-    container: node:latest
     if: contains(github.event.head_commit.message, 'ref_resolver')
     permissions:
       contents: write
@@ -202,7 +201,7 @@ jobs:
         shell: bash
 
       - name: Set Git Safe Directory
-        run: git config --global --add safe.directory $(pwd)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Configure Git
         run: |
