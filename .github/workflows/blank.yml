@@ -77,6 +77,10 @@ jobs:
 
       - name: Set Variables
         run: |
+          if [ -z "$APIQ_API_FILENAME" ]; then
+            echo "ERROR: APIQ_API_FILENAME no está definido"
+            exit 1
+          fi
           BASE_FILENAME=$(echo "$APIQ_API_FILENAME" | sed 's/\.yaml//')
           echo "BASE_FILENAME=$BASE_FILENAME" >> $GITHUB_ENV
 
