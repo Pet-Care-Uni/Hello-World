@@ -173,9 +173,15 @@ jobs:
 
   ref_resolver:
     runs-on: ubuntu-latest
+    container: node:latest
     if: contains(github.event.head_commit.message, 'ref_resolver')
     permissions:
       contents: write
+    env:
+      APIQ_GITHUB_URL: ${{ secrets.APIQ_GITHUB_URL }}
+      CI_JOB_TOKEN: ${{ secrets.CI_JOB_TOKEN }}
+      GITLAB_USER_EMAIL: ${{ secrets.GITLAB_USER_EMAIL }}
+      GITLAB_USER_NAME: ${{ secrets.GITLAB_USER_NAME }}
 
     steps:
       - name: Checkout repository
