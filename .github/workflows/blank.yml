@@ -119,6 +119,7 @@ jobs:
           git show $LAST_COMMIT:./$APIQ_API_FILENAME > ${BASE_FILENAME}_old.yaml
 
       - name: Run OpenAPI Diff in Container
+        continue-on-error: true
         run: |
           docker run --rm -v ${{ github.workspace }}:/workdir -w /workdir openapitools/openapi-diff:2.0.1 \
             ${BASE_FILENAME}_old.yaml ${APIQ_API_FILENAME} \

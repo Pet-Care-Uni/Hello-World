@@ -70,7 +70,7 @@ paths:
       summary: Image contains nudity or sexually explicit content? [ image_url -> id ]
       tags:
         - vision
-  /adult_content/{taskId}:
+  /adult_contents/{taskId}:
     get:
       description: Gets the adult_content task.
       parameters:
