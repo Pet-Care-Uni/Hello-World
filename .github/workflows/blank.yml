@@ -392,10 +392,53 @@ jobs:
             git push origin $GITHUB_REF_NAME --no-verify
           fi
 
-      # Create microcks file
       - name: Generate microcks file
         run: cat "$APIQ_API_FILENAME" > microcks_file.txt
 
     outputs:
       microcks_file: microcks_file.txt
 
+  microcks:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Load pipeline properties
+        run: |
+          if [ -f pipeline.properties ]; then
+            while IFS='=' read -r key value; do
+              if [[ ! -z "$key" ]]; then
+                echo "$key=$value" >> $GITHUB_ENV
+              fi
+            done < pipeline.properties
+          else
+            echo "pipeline.properties not found"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Modify API title if JSON
+        if: endsWith(env.APIQ_API_FILENAME, '.json')
+        run: |
+          sed -i "s/\"title\": \"[^\"]*/\"title\": \"$APIQ_API_TEMP_TITLE/" "$APIQ_API_FILENAME"
+
+      - name: Modify API title if YAML
+        if: endsWith(env.APIQ_API_FILENAME, '.yaml') || endsWith(env.APIQ_API_FILENAME, '.yml')
+        run: |
+          sed -i "s/\(title: \).*/\1\"$APIQ_API_TEMP_TITLE\"/" "$APIQ_API_FILENAME"
+
+      - name: Run Microcks CLI
+        run: |
+          docker run --rm quay.io/microcks/microcks-cli:0.5.3 \
+            microcks-cli import "$APIQ_API_FILENAME" \
+            --microcksURL="${{ secrets.MICROCKS_URL }}/api/" \
+            --keycloakClientId="${{ secrets.MICROCKS_CLI_CLIENT_ID }}" \
+            --keycloakClientSecret="${{ secrets.MICROCKS_CLI_CLIENT_SECRET }}"
+
+      - name: Upload API file as artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: microcks-api-file
+          path: ${{ env.APIQ_API_FILENAME }}
+          retention-days: 1
