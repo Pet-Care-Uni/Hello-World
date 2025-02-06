@@ -73,8 +73,8 @@ jobs:
 
   openapi_diffs:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, 'openapi_diffs')
-
+    needs: redocly_linter
+    if: always() && contains(github.event.head_commit.message, 'openapi_diffs')
     steps:
       - name: Checkout Repository
         uses: actions/checkout@v3
@@ -127,7 +127,8 @@ jobs:
 
   sonarqube:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, 'sonarqube')
+    needs: openapi_diffs
+    if: always() && contains(github.event.head_commit.message, 'sonarqube')
     container:
       image: sonarsource/sonar-scanner-cli:4.7
       options: --entrypoint ""
@@ -173,7 +174,8 @@ jobs:
 
   ref_resolver:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, 'ref_resolver')
+    needs: sonarqube
+    if: always() && contains(github.event.head_commit.message, 'ref_resolver')
     permissions:
       contents: write
     env:
@@ -234,7 +236,8 @@ jobs:
 
   sonar2spectral:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, 'sonar2spectral')
+    needs: ref_resolver
+    if: always() && contains(github.event.head_commit.message, 'sonar2spectral')
     permissions:
       contents: write
     env:
@@ -285,7 +288,8 @@ jobs:
           fi
   microcks_enricher:
     runs-on: ubuntu-latest
-    if: contains(github.event.head_commit.message, 'microcks_enricher')
+    needs: sonar2spectral
+    if: always() && contains(github.event.head_commit.message, 'microcks_enricher')
     permissions:
       contents: write
     env:
