@@ -465,7 +465,6 @@ jobs:
       - name: Checkout del código
         uses: actions/checkout@v4
 
-
       - name: Load pipeline properties
         run: |
           if [ -f pipeline.properties ]; then
@@ -514,3 +513,71 @@ jobs:
           name: postman-folder
           path: ./auto-generated/${{ env.APIQ_POSTMAN_FOLDER }}
           retention-days: 1
+  apigen_net:
+    runs-on: ubuntu-latest
+    needs: openapi2postman
+    if: always() && contains(github.event.head_commit.message, 'apigen_net')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout del repositorio
+        uses: actions/checkout@v4
+
+      - name: Load pipeline properties
+        run: |
+          if [ -f pipeline.properties ]; then
+            while IFS='=' read -r key value; do
+              if [[ ! -z "$key" ]]; then
+                echo "$key=$value" >> $GITHUB_ENV
+              fi
+            done < pipeline.properties
+          else
+            echo "pipeline.properties not found"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Set Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configurar usuario de Git
+        run: |
+          git config --global user.email "${{ secrets.GITLAB_USER_EMAIL }}"
+          git config --global user.name "${{ secrets.GITLAB_USER_NAME }}"
+          git checkout -f ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }}
+          git pull
+
+      - name: Instalar dependencias
+        run: |
+          sudo apt-get update && sudo apt-get install -y curl git unzip
+
+      - name: Descargar archivo generado desde API
+        run: |
+          curl -X POST "https://api-gateway.apiquality.io/api-apigen-dotnet/v1/generator/file" \
+          -H "accept:application/zip" -H "Content-Type:multipart/form-data" \
+          --form "file=@$APIQ_API_FILENAME" -o generated.zip
+
+      - name: Extraer archivos generados
+        run: |
+          mkdir -p ./auto-generated/apigen/$APIQ_LANGUAGE
+          unzip -o -q generated.zip -d ./auto-generated/apigen/$APIQ_LANGUAGE
+          rm generated.zip
+
+      - name: Actualizar repositorio
+        run: |
+          git add ./auto-generated/apigen/$APIQ_LANGUAGE
+          git status
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to commit."
+          else
+            git commit -m "DotNet"
+            git push origin $GITHUB_REF_NAME --no-verify
+          fi
+
+      - name: Guardar artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dotnet
+          path: ./auto-generated/apigen/$APIQ_LANGUAGE
+          retention-days: 7  # Se almacenará por 7 días
