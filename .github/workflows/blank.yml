@@ -512,3 +512,4 @@ jobs:
         with:
           name: postman-folder
           path: ./auto-generated/${{ env.APIQ_POSTMAN_FOLDER }}
+          retention-days: 1
