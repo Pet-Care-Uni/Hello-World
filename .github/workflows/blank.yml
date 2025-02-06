@@ -288,8 +288,7 @@ jobs:
           fi
   microcks_enricher:
     runs-on: ubuntu-latest
-    needs: sonar2spectral
-    if: always() && contains(github.event.head_commit.message, 'microcks_enricher')
+    if: contains(github.event.head_commit.message, 'microcks_enricher')
     permissions:
       contents: write
     env:
