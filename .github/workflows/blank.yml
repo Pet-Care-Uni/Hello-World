@@ -400,6 +400,7 @@ jobs:
 
   microcks:
     runs-on: ubuntu-latest
+    needs: microcks_enricher
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
