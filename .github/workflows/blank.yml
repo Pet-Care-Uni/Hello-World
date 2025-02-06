@@ -404,6 +404,7 @@ jobs:
   microcks:
     runs-on: ubuntu-latest
     needs: microcks_enricher
+    if: always() && contains(github.event.head_commit.message, 'microcks')
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -446,3 +447,68 @@ jobs:
           name: microcks-api-file
           path: ${{ env.APIQ_API_FILENAME }}
           retention-days: 1
+
+  openapi2postman:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'openapi2postman')
+    permissions:
+      contents: write
+    env:
+      APIQ_GITHUB_URL: ${{ secrets.APIQ_GITHUB_URL }}
+      CI_JOB_TOKEN: ${{ secrets.CI_JOB_TOKEN }}
+      GITLAB_USER_EMAIL: ${{ secrets.GITLAB_USER_EMAIL }}
+      GITLAB_USER_NAME: ${{ secrets.GITLAB_USER_NAME }}
+    container:
+      image: node:16
+    steps:
+      - name: Checkout del código
+        uses: actions/checkout@v4
+
+
+      - name: Load pipeline properties
+        run: |
+          if [ -f pipeline.properties ]; then
+            while IFS='=' read -r key value; do
+              if [[ ! -z "$key" ]]; then
+                echo "$key=$value" >> $GITHUB_ENV
+              fi
+            done < pipeline.properties
+          else
+            echo "pipeline.properties not found"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Set Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configurar usuario de Git
+        run: |
+          git config --global user.email "${{ secrets.GITLAB_USER_EMAIL }}"
+          git config --global user.name "${{ secrets.GITLAB_USER_NAME }}"
+          git checkout -f ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }}
+          git pull
+
+      - name: Instalar openapi2postman
+        run: npm i openapi2postman -g
+
+      - name: Convertir OpenAPI a Postman
+        run: |
+          o2p --configuration ./auto-generated/$APIQ_POSTMAN_FOLDER/s2p_config_file.json --file $APIQ_API_FILENAME
+
+      - name: Verificar cambios y hacer commit
+        run: |
+          git add ./auto-generated/$APIQ_POSTMAN_FOLDER
+          git status
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to commit."
+          else
+            git commit -m "Postman"
+            git push origin $GITHUB_REF_NAME --no-verify
+          fi
+
+      - name: Guardar artefactos
+        uses: actions/upload-artifact@v4
+        with:
+          name: postman-folder
+          path: ./auto-generated/${{ env.APIQ_POSTMAN_FOLDER }}
