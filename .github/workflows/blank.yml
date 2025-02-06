@@ -283,3 +283,119 @@ jobs:
             git commit -m "Generate spectral rules file from Sonar guide style"
             git push origin $GITHUB_REF_NAME --no-verify
           fi
+  microcks_enricher:
+    runs-on: ubuntu-latest
+    if: contains(github.event.head_commit.message, 'microcks_enricher')
+    permissions:
+      contents: write
+    env:
+      APIQ_GITHUB_URL: ${{ secrets.APIQ_GITHUB_URL }}
+      CI_JOB_TOKEN: ${{ secrets.CI_JOB_TOKEN }}
+      GITLAB_USER_EMAIL: ${{ secrets.GITLAB_USER_EMAIL }}
+      GITLAB_USER_NAME: ${{ secrets.GITLAB_USER_NAME }}
+    steps:
+      # Checkout code
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Load pipeline properties
+        run: |
+          if [ -f pipeline.properties ]; then
+            while IFS='=' read -r key value; do
+              if [[ ! -z "$key" ]]; then
+                echo "$key=$value" >> $GITHUB_ENV
+              fi
+            done < pipeline.properties
+          else
+            echo "pipeline.properties not found"
+            exit 1
+          fi
+        shell: bash
+
+      - name: Install dependencies
+        run: |
+          sudo apt update
+          sudo apt-get install -y wget jq
+          wget https://github.com/mikefarah/yq/releases/download/v4.30.8/yq_linux_amd64 -O /tmp/yq
+          chmod +x /tmp/yq
+          sudo mv /tmp/yq /usr/local/bin/
+
+      - name: Set Git Safe Directory
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+
+      - name: Configure Git
+        run: |
+          git config --global user.email "${GITLAB_USER_EMAIL}"
+          git config --global user.name "${GITLAB_USER_NAME}"
+          git checkout -f ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }}
+          git pull
+
+      - name: Set dispatcher rules
+        run: |
+          dispatcher_rules="def headers = mockRequest.getRequestHeaders(); if (headers.hasValues(\"X-Microcks-Response-Name\")) { return headers.get(\"X-Microcks-Response-Name\", \"null\") }"
+          extension=$(echo $APIQ_API_FILENAME | cut -f 2 -d '.')
+
+      - name: Enrich API file (YAML)
+        run: |
+          if [[ "$extension" == "yaml" || "$extension" == "yml" ]]; then
+            version=$(yq e '.swagger // .openapi' $APIQ_API_FILENAME)
+            if [[ "$version" == "2.0" ]]; then
+              echo 'Swagger format is not compatible with microcks dispatcher'
+              exit 1
+            fi
+            yq eval '.paths | keys' $APIQ_API_FILENAME | sed 's/^- //' | while IFS= read -r endpoint; do
+              for method in "${methods[@]}"; do
+                method_exists=$(yq e ".paths[\"$endpoint\"].$method" $APIQ_API_FILENAME)
+                if [[ "$method_exists" != "null" ]]; then
+                  microcks_exists=$(yq e ".paths[\"$endpoint\"].$method.'x-microcks-operation'" $APIQ_API_FILENAME)
+                  if [[ "$microcks_exists" == null ]]; then
+                    yq eval -i ".paths[\"$endpoint\"].$method.x-microcks-operation.delay = 100" $APIQ_API_FILENAME
+                    newtag="SCRIPT" yq e --inplace '.paths["'"$endpoint"'"].'"$method"'.x-microcks-operation.dispatcher |= strenv(newtag)' $APIQ_API_FILENAME
+                    rules="$dispatcher_rules" yq e --inplace '.paths["'"$endpoint"'"].'"$method"'.x-microcks-operation.dispatcherRules |= strenv(rules)' $APIQ_API_FILENAME
+                  fi
+                fi
+              done
+            done
+          fi
+
+      - name: Enrich API file (JSON)
+        run: |
+          if [[ "$extension" == "json" ]]; then
+            version=$(jq -r '.swagger // .openapi' $APIQ_API_FILENAME)
+            if [[ "$version" == "2.0" ]]; then
+              echo 'Swagger format is not compatible with microcks dispatcher'
+              exit 1
+            fi
+            endpoints=$(jq -r '.paths | keys[]' $APIQ_API_FILENAME)
+            for endpoint in $endpoints; do
+              for method in "${methods[@]}"; do
+                if jq -e ".paths[\"$endpoint\"].\"$method\"" $APIQ_API_FILENAME > /dev/null; then
+                  if ! jq -e ".paths[\"$endpoint\"].\"$method\".\"x-microcks-operation\"" $APIQ_API_FILENAME > /dev/null; then
+                    jq --arg dr "$dispatcher_rules" ".paths[\"$endpoint\"].\"$method\" |= . + {\"x-microcks-operation\": {\"delay\": 100, \"dispatcher\": \"SCRIPT\", \"dispatcherRules\": \$dr}}" $APIQ_API_FILENAME > temp.json
+                    mv temp.json $APIQ_API_FILENAME
+                  fi
+                fi
+              done
+            done
+          fi
+
+      - name: Check git status
+        run: git status
+
+      - name: Commit and push changes
+        run: |
+          if git diff-index --quiet HEAD --; then
+            echo "No changes to commit."
+          else
+            git add .
+            git commit -m "Enricher"
+            git push origin $GITHUB_REF_NAME --no-verify
+          fi
+
+      # Create microcks file
+      - name: Generate microcks file
+        run: cat "$APIQ_API_FILENAME" > microcks_file.txt
+
+    outputs:
+      microcks_file: microcks_file.txt
+
