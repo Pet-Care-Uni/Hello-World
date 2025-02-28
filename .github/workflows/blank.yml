@@ -18,8 +18,6 @@ jobs:
   apigen_net:
     runs-on: ubuntu-latest
     if: contains(github.event.head_commit.message, 'apigen_net')
-    container:
-      image: alpine:latest
     permissions:
       contents: write
     env:
