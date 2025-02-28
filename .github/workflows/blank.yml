@@ -88,10 +88,11 @@ jobs:
           fi
 
       - name: Upload artifacts
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: dotnet
           path: ./auto-generated/apigen/$APIQ_LANGUAGE
+          retention-days: 1
 
   redocly_linter:
     runs-on: ubuntu-latest
