@@ -2,7 +2,7 @@ swagger: '2.0'
 schemes:
   - https
 host: aiception.com
-basePath: /api/v2.1
+basePath: /api/v2.2
 info:
   contact:
     x-twitter: twitter40
@@ -29,8 +29,6 @@ tags:
       description: Find out more
       url: https://aiception.com
     name: vision
-  - description: What will you make?
-    name: creative
   - description: Speech to text, text to speech, natural language processing
     externalDocs:
       description: Find out more
