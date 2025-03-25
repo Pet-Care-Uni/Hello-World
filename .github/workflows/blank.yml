@@ -98,8 +98,6 @@ jobs:
       contents: write
     env:
       APIQ_GITHUB_URL: ${{ secrets.APIQ_GITHUB_URL }}
-      CI_JOB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      GITLAB_USER_EMAIL: ${{ secrets.GITLAB_USER_EMAIL }}
 
     steps:
       - name: Checkout repository
@@ -124,9 +122,9 @@ jobs:
 
       - name: Configure Git
         run: |
-          echo GITHUB_ACTOR
-          echo GITLAB_USER_EMAIL
-          git config --global user.email "${GITLAB_USER_EMAIL}"
+          echo ${GITHUB_ACTOR}
+          echo "${GITHUB_ACTOR}@users.noreply.github.com"
+          git config --global user.email "${GITHUB_ACTOR}@users.noreply.github.com"
           git config --global user.name "${GITHUB_ACTOR}"
           git checkout -f ${{ github.ref_name }} || git checkout -b ${{ github.ref_name }}
           git pull
