@@ -141,7 +141,7 @@ jobs:
             echo "No changes to commit."
           else
             git commit -m "Generate redocly linter report"
-            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@${{ secrets.APIQ_GITHUB_URL }}/${{ github.repository }}.git -o ci.skip
+            git push https://x-access-token:${{ secrets.GITHUB_TOKEN }}@github.com/${{ github.repository }}.git -o ci.skip
           fi
           exit $LINT_EXIT_CODE
 
