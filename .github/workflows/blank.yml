@@ -201,8 +201,7 @@ jobs:
 
   sonarqube:
     runs-on: ubuntu-latest
-    needs: openapi_diffs
-    if: always() && contains(github.event.head_commit.message, 'sonarqube')
+    if: contains(github.event.head_commit.message, 'sonarqube')
     container:
       image: sonarsource/sonar-scanner-cli:4.7
       options: --entrypoint ""
@@ -229,6 +228,14 @@ jobs:
             echo "pipeline.properties not found"
             exit 1
           fi
+        shell: bash
+
+      - name: Modify SonarQube configuration
+        run: |
+          export API_ID=$(grep '^sonar.projectKey=' sonar-project.properties | awk -F'[=_]' '{print $2}')
+          export SONAR_PROJECT_KEY="${API_ID}_${APIQ_API_NAME}_${CI_COMMIT_BRANCH}"
+          sed -i "s/^sonar.projectKey=.*/sonar.projectKey=${SONAR_PROJECT_KEY}/" "sonar-project.properties"
+          sed -i "s/^sonar.openapi.path.API_DEFINITION_TYPE=.*/sonar.openapi.path.API_DEFINITION_TYPE=${SONAR_PROJECT_KEY}/" "sonar-project.properties"
         shell: bash
 
       - name: Cache SonarQube files
